@@ -105,64 +105,64 @@ int picoshell(char *av[])
 int mypicoshell(char *cmds[])
 {
     int i = 0;
-    int fd[2];
+    int fd[2] = 0;
+    int prevFd = 0;
     int status = 0;
-    int prev_fd = 0;
-    int ret = 0;
     pid_t pid = 0;
+    int start = 0;
     while (cmds[i])
     {
-        int offset = i;
+        start = i;
         while (cmds[i] && ft_strcmp(cmds[i], "|") != 0)
+        {
             i++;
+        }
         if (cmds[i])
         {
-            if (pipe(fd) == -1)
-                return 1;
+            pipe(fd);
         }
         pid = fork();
         if (pid == -1)
             return 1;
         if (pid == 0)
         {
-            if (prev_fd != 0)
+            if (prevFd != 0)
             {
-                if (dup2(prev_fd, STDIN_FILENO) == -1)
-                    exit(1);
-                close(prev_fd);
+                dup2(fd[0], STDIN_FILENO);
+                close(fd[0]);
             }
-
             if (cmds[i] != NULL)
             {
-                close(fd[0]);
-                if (dup2(fd[1], STDOUT_FILENO) == -1)
-                    exit(1);
+                dup2(fd[1], STDOUT_FILENO);
                 close(fd[1]);
             }
             cmds[i] = NULL;
-            execvp(cmds[offset], &cmds[offset]);
+            execvp(cmds[start], &cmds[start]);
             exit(1);
         }
         else
         {
-            if (prev_fd != 0)
-                close(prev_fd);
-            if (cmds[i] != NULL)
+            if (prevFd)
             {
+                close(prevFd);
+            }
+            if (cmds[i])
+            {
+                prevFd = fd[0];
                 close(fd[1]);
                 i++;
-                prev_fd = fd[0];
             }
         }
     }
+    int res = 0;
     while (wait(&status) > 0)
     {
-        if (WIFEXITED(status) && WEXITSTATUS(status) != 0) //정상종료했는데 exit 코드가 0이 아닌가? 그럼 에러!
-            ret = 1;
-        else if (!WIFEXITED(status)) //정상종료가아님.
-            ret = 1;
+        if (WIFEXITED(status) && WEXITSTATUS(status) != 0)
+            res = 1;
+        else if (!WIFEXITED(status))
+            res = 1;
     }
-    return ret;
+    return res;
 }
 
 

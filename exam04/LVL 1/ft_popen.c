@@ -2,7 +2,6 @@
 #include <unistd.h>
 #include <stdio.h>
 
-
 int ft_popen(const char *file, char *const av[], int type)
 {
     if (!file || !av || (type != 'r' && type != 'w'))

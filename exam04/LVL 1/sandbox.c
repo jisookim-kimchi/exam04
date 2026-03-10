@@ -129,7 +129,7 @@ int sandbox(void (*f)(void), unsigned int timeout, bool verbose)
   return -1;
 }
 
-/*void ok_f(void)
+void ok_f(void)
 {
         printf("noice. ");
 }
@@ -182,8 +182,7 @@ void cancel_alarm(void)
         sigaction(SIGALRM, &ca, NULL);
 
         sleep(5);
-        printf("f waited 5 seconds, should be terminated before by alarm set in
-parent process if timeout < 5\n");
+        printf("f waited 5 seconds, should be terminated before by alarm set in parent process if timeout < 5\n");
 }
 
 void leak_f(void)
@@ -220,4 +219,4 @@ int main(void)
     test_func(fast_print_f, 2, "fast_print_f (quick print + return 0)");
 
     return 0;
-}*/
+}
