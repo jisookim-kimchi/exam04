@@ -67,26 +67,17 @@ node    *parse_low_priority(char **s);
 node    *parse_mid_priority(char **s);
 node    *parse_highest_priority(char **s);
 
+
 node    *parse_expr(char *s)
 {
     //...
-    if (s == NULL)
-        return (NULL);
 
     if (*s) 
     {
-        node *ret = parse_low_priority(&s);
-        if (!ret)
-            return (NULL);
-        if (*s)
-        {
-            unexpected(*s);
-            destroy_tree(ret);
-            return (NULL);
-        }
-        return (ret);
+        destroy_tree(ret);
+        return (NULL);
     }
-    return (NULL);
+    return (ret);
 }
 
 int eval_tree(node *tree)
@@ -100,15 +91,4 @@ int eval_tree(node *tree)
         case VAL:
             return (tree->val);
     }
-}
-
-int main(int argc, char **argv)
-{
-    if (argc != 2)
-        return (1);
-    node *tree = parse_expr(argv[1]);
-    if (!tree)
-        return (1);
-    printf("%d\n", eval_tree(tree));
-    destroy_tree(tree);
 }
