@@ -48,6 +48,8 @@ int picoshell(char ***cmds)
     while (cmds[i])
     {
         int start = i;
+        // while (*cmds[i] && strcmp(*cmds[i], "|") != 0)
+        //     i++;
         if (cmds[i + 1])
             has_pipe = 1;
 
@@ -102,10 +104,21 @@ int picoshell(char ***cmds)
     }
     return res;
 }
+
+int count_cmds(int argc, char *argv[])
+{
+    int count = 1;  // at least one command
+    for (int i = 1; i < argc; i++) {
+        if (strcmp(argv[i], "|") == 0)
+            count++;
+    }
+    return count;
+}
+
 int main(int argc, char **argv)
 {
     if (argc < 2)
-        return (fprintf(stderr, "Usage: %s cmd1 [args] | cmd2 [args] ...\n", argv[0]), 1);
+        return  1;
 
     int cmd_count = count_cmds(argc, argv);
     char ***cmds = calloc(cmd_count + 1, sizeof(char **));
