@@ -71,9 +71,15 @@ node    *parse_highest_priority(char **s);
 node    *parse_expr(char *s)
 {
     //...
-
-    if (*s) 
+    if (!*s)
+        return NULL;
+    struct node *ret = low(&s);
+    if(!ret)
+        return NULL;
+    
+    if (*s == '\0') 
     {
+        unexpected(&s);
         destroy_tree(ret);
         return (NULL);
     }

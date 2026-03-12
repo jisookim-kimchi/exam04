@@ -40,7 +40,26 @@ int ft_popen(const char *file, char *const av[], int type)
     return (-1);
 }
 
-
+int ft_popen1(const char *file, const char *av[], int type)
+{
+    if (!file || !av || (!(type == 'w' || type == 'r')))
+        return -1;
+    int fd[2];
+    if (type == 'r')
+    {
+        if (fork() == 0)
+        {
+            if (dup2(fd[1], STDOUT_FILENO) == -1)
+                exit(1);
+            close(fd[0]);
+            close(fd[1]);
+            execvp(file, av);
+            exit(1);
+        }
+        close(fd[1]);
+        return fd[0];
+    }
+}
 int main(void)
 {
     // char *const avr[] = {"cat", "ft_popen.c", NULL}; 
@@ -76,3 +95,26 @@ int main(void)
     sleep(1);
     return (0);
 }
+
+
+int ft_popen(const char *file, char *const av[], int type)
+{
+    if (!file || !av || !(type == 'r' || type == 'w'))
+        return -1;
+    int fd[2] = 0;
+    if (type == 'r')
+    {
+        if (fork() == 0)
+        {
+            dup2(fd[1], STDOUT_FILENO);
+            close(fd[1]);
+            close(fd[0]);
+            execvp(file, av);
+            exit(-1);
+        }
+        close(fd[1]);
+        return fd[0];
+    }
+
+}
+
