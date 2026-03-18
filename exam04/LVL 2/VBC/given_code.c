@@ -82,11 +82,8 @@ struct node *parse_highest_priority(char **s)
         struct node new;
         new.l = new.r = NULL;
         new.type = VAL;
-        while (isdigit(**s))
-        {
-            new.val = new.val * 10 + (**s - '0');
-            (*s)++;
-        }
+        new.val = **s - '0';
+        (*s)++;
         return new_node(new);
     }
     if (**s == '(')
@@ -167,6 +164,7 @@ struct node *parse_low_priority(char **s)
 
 node    *parse_expr(char *s)
 {
+    //...
     if (!*s)
         return NULL;
     struct node *ret = parse_low_priority(&s);
