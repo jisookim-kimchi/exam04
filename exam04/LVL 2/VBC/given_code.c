@@ -30,8 +30,10 @@ void    destroy_tree(node *n)
         return ;
     if (n->type != VAL)
     {
-        destroy_tree(n->l);
-        destroy_tree(n->r);
+        if (n->l)
+            destroy_tree(n->l);
+        if (n->r)
+            destroy_tree(n->r);
     }
     free(n);
 }
@@ -68,18 +70,112 @@ node    *parse_mid_priority(char **s);
 node    *parse_highest_priority(char **s);
 
 
+struct node *parse_highest_priority(char **s)
+{
+    if (**s == '\0')
+    {
+        unexpected(**s);
+        return NULL;
+    }
+    if (isdigit(**s))
+    {
+        struct node new;
+        new.l = new.r = NULL;
+        new.type = VAL;
+        while (isdigit(**s))
+        {
+            new.val = new.val * 10 + (**s - '0');
+            (*s)++;
+        }
+        return new_node(new);
+    }
+    if (**s == '(')
+    {
+        (*s)++;
+        struct node *low =parse_low_priority(s);
+        if(!low)
+        {
+            return NULL;
+        }
+        if (**s == '\0')
+        {
+            destroy_tree(low);
+            unexpected(**s);
+            return NULL;
+        }
+        if (**s != ')')
+        {
+            destroy_tree(low);
+            unexpected(**s);
+            return NULL;
+        }
+        (*s)++;
+        return low;
+    }
+    unexpected(**s);
+    return NULL;
+}
+struct node *parse_mid_priority(char **s)
+{
+    struct node *left = parse_highest_priority(s);
+    if (!left)
+        return NULL;
+    while (**s == '*')
+    {
+        (*s)++;
+        struct node *right = parse_highest_priority(s);
+        if (!right)
+        {
+            destroy_tree(left);
+            return NULL;
+        }
+        struct node n;
+        n.l = left;
+        n.r = right;
+        n.type = MULTI;
+        left = new_node(n);
+        if (!left)
+            return NULL;
+    }
+    return left;
+}
+struct node *parse_low_priority(char **s)
+{
+    struct node *left = parse_mid_priority(s);
+    if (!left)
+        return NULL;
+    while(**s == '+')
+    {
+        (*s)++;
+        struct node *right = parse_mid_priority(s);
+        if (!right)
+        {
+            destroy_tree(left);
+            return NULL;
+        }
+        struct node n;
+        n.l = left;
+        n.r = right;
+        n.type =ADD;
+        left = new_node(n);
+        if (!left)
+            return NULL;
+    }
+    return left;
+}
+
+
 node    *parse_expr(char *s)
 {
-    //...
     if (!*s)
         return NULL;
-    struct node *ret = low(&s);
+    struct node *ret = parse_low_priority(&s);
     if(!ret)
         return NULL;
     
-    if (*s == '\0') 
+    if (*s != '\0') 
     {
-        unexpected(&s);
+        unexpected(*s);
         destroy_tree(ret);
         return (NULL);
     }
@@ -97,4 +193,20 @@ int eval_tree(node *tree)
         case VAL:
             return (tree->val);
     }
+}
+
+int main(int argc, char **argv)
+{
+    if (argc != 2)
+        return 1;
+
+    char *s = argv[1];
+
+    struct node *tree = parse_expr(s);
+    if (!tree)
+        return 1;
+
+    printf("%d\n", eval_tree(tree));
+    destroy_tree(tree);
+    return 0;
 }

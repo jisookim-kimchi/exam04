@@ -5,8 +5,8 @@
 
 int	peek(FILE *stream)
 {
-	int	c = getc(stream);
-	ungetc(c, stream);
+	int	c = getc(stream); // read one character from a FILE* stream, retrun eof when it reached eof
+	ungetc(c, stream); // put it back
 	return c;
 }
 
