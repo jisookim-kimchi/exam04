@@ -1,223 +1,226 @@
 #include "argo.h"
 #include <stdlib.h>  // malloc, realloc, free
 
-/* ---------- PARTIE FOURNIE PAR L’EXAMEN (argo.c initial) ---------- */
+/* 
+Assignment name: argo
+Expected files: argo.c
+Allowed functions: getc, ungetc, printf, malloc, calloc, realloc, free, isdigit, fscanf, write
+-----------------
+Write a function argo that will parse a json file in the structure declared in argo.h:
 
+int	argo(json *dst, FILE *stream);
+
+	dst	- is the pointer to the AST that you will create
+	stream	- is the file to parse (man FILE)
+
+Your function will return 1 for success and -1 for failure.
+If an unexpected token is found you will print the following message in stdout:
+"Unexpected token '%c'\n"
+or if the token is EOF:
+"Unexpected end of input\n"
+
+Only handle numbers, strings and maps.
+Numbers will only be basic ints like in scanf("%d")
+Handle escaping in the strings only for backslashes and quotation marks (no \n \u ...)
+Don't handle spaces -> consider them as invalid tokens.
+
+In case of doubt how to parse json, read rfc8259. But you won't need it as the format is simple. Tested with the main, the output should be exactly the same as the input (except for errors).
+There are some functions in argo.c that might help you.
+
+Examples that should work:
+
+$> echo -n '1' | ./argo /dev/stdin | cat -e
+1$
+$> echo -n '"bonjour"' | ./argo /dev/stdin | cat -e
+"bonjour"$
+$> echo -n '"escape! \" "' | ./argo /dev/stdin | cat -e
+"escape! \" "$
+$> echo -n '{"tomatoes":42,"potatoes":234}' | ./argo /dev/stdin | cat -e
+{"tomatoes":42,"potatoes":234}$
+$> echo -n '{"recursion":{"recursion":{"recursion":{"recursion":"recursion"}}}}' | ./argo /dev/stdin | cat -e
+{"recursion":{"recursion":{"recursion":{"recursion":"recursion"}}}}$
+$> echo -n '"unfinished string' | ./argo /dev/stdin | cat -e
+unexpected end of input$
+$> echo -n '"unfinished string 2\"' | ./argo /dev/stdin | cat -e
+unexpected end of input$
+$> echo -n '{"no value?":}' | ./argo /dev/stdin | cat -e
+unexpected token '}'$-
+ */
+
+ // 읽고(getc) 되돌리기(ungetc)
 int	peek(FILE *stream)
 {
-	int	c = getc(stream);
-	ungetc(c, stream);
-	return c;
+  int	c = getc(stream);
+  ungetc(c, stream);
+  return c;
 }
 
+/*
+ * 에러 메시지의 첫 글자를 대문자 'U'로 수정했습니다.
+ */
 void	unexpected(FILE *stream)
 {
-	if (peek(stream) != EOF)
-		printf("unexpected token '%c'\n", peek(stream));
-	else
-		printf("unexpected end of input\n");
+  if (peek(stream) != EOF)
+    printf("Unexpected token '%c'\n", peek(stream));
+  else
+    printf("Unexpected end of input\n");
 }
 
 int	accept(FILE *stream, char c)
 {
 	if (peek(stream) == c)
 	{
-		(void)getc(stream);
-		return 1;
-	}
-	return 0;
+    (void)getc(stream);
+    return 1;
+  }
+  return 0;
 }
 
 int	expect(FILE *stream, char c)
 {
-	if (accept(stream, c))
-		return 1;
-	unexpected(stream);
-	return 0;
+  if (accept(stream, c))
+    return 1;
+  unexpected(stream);
+  return 0;
 }
 
-
-/* ---------- PARTIE AJOUTÉE : PARSING JSON (sans free_json) ---------- */
-
-/* forward declarations */
-static int	parse_value(json *dst, FILE *stream);
-static int	parse_integer(json *dst, FILE *stream);
-static int	parse_string(json *dst, FILE *stream);
-static int	parse_map(json *dst, FILE *stream);
-
-/*
- * argo : point d'entrée de l'analyse.
- * Appelle parse_value, puis vérifie qu'on est bien en fin de flux.
- * En cas d'erreur intermédiaire, on fait appel à free_json(dst)
- * qui est fourni par le main.c.
- */
-int	argo(json *dst, FILE *stream)
+int	parse_int(json *dst, FILE *stream)
 {
-	if (parse_value(dst, stream) == -1)
-		return -1;
-	if (peek(stream) != EOF)
-	{
-		unexpected(stream);
-		free_json(*dst);     /* <-- appelle la version de main.c */
-		return -1;
-	}
-	return 1;
+  int n = 0;
+
+  if (fscanf(stream, "%d", &n) != 1)
+    return -1;
+  dst->type = INTEGER;
+  dst->integer = n;
+  return (1);
 }
 
-static int	parse_value(json *dst, FILE *stream)
+char *get_str(FILE *stream)
 {
-	int	c = peek(stream);
+  char *res = calloc(4096, sizeof(char));
+  int i = 0;
+  (void)getc(stream); // 여는 따옴표 '"' 소비
 
-	if (c == '"')
-		return parse_string(dst, stream);
-	if (c == '{')
-		return parse_map(dst, stream);
-	if (c == '-' || isdigit(c))
-		return parse_integer(dst, stream);
+  while (1)
+  {
+    int c = getc(stream);
 
-	unexpected(stream);
-	return -1;
+    if (c == '"')
+      break;
+    if (c == EOF)
+	{
+      unexpected(stream);
+      free(res);
+      return NULL;
+    }
+    if (c == '\\')
+	{
+      c = getc(stream);
+      if (c == EOF)
+	  {
+        unexpected(stream);
+        free(res);
+        return NULL;
+      }
+    }
+    res[i++] = c;
+  }
+  return (res);
 }
 
-static int	parse_integer(json *dst, FILE *stream)
-{
-	int		c;
-	long	val = 0;
-	int		sign = 1;
+/* parser 선언 (상호 참조 대비) */
+int parser(json *dst, FILE *stream);
 
-	if (peek(stream) == '-')
+int parse_map(json *dst, FILE *stream)
+{
+  dst->type = MAP;
+  dst->map.size = 0;
+  dst->map.data = NULL;
+  (void)getc(stream); // 여는 중괄호 '{' 소비
+
+  if (peek(stream) == '}')
+  {
+    accept(stream, '}');
+    return 1;
+  }
+
+  while (1)
+  {
+    if (peek(stream) != '"')
 	{
-		sign = -1;
-		getc(stream);
-	}
-	if (!isdigit(peek(stream)))
+      unexpected(stream);
+      return -1;
+    }
+    dst->map.data = realloc(dst->map.data, (dst->map.size + 1) * sizeof(pair));
+    pair *current = &dst->map.data[dst->map.size];
+    current->key = get_str(stream);
+    if (current->key == NULL)
+      return -1;
+
+    dst->map.size++;
+
+    if (expect(stream, ':') == 0)
+      return -1;
+
+    if (parser(&current->value, stream) == -1)
+      return -1;
+
+    int c = peek(stream);
+    if (c == '}')
 	{
-		unexpected(stream);
-		return -1;
-	}
-	while (isdigit(peek(stream)))
+      accept(stream, '}');
+      break;
+    }
+    if (c == ',')
 	{
-		c = getc(stream);
-		val = val * 10 + (c - '0');
-	}
-	dst->type    = INTEGER;
-	dst->integer = (int)(sign * val);
-	return 1;
+      accept(stream, ',');
+    }
+	else
+	{
+      unexpected(stream);
+      return -1;
+    }
+  }
+  return 1;
 }
 
-static int	parse_string(json *dst, FILE *stream)
+int parser(json *dst, FILE *stream)
 {
-	size_t	cap = 16, len = 0;
-	char	*buf;
-	int		c;
+  int c = peek(stream);
 
-	if (!accept(stream, '"'))
-		return -1;
-	buf = malloc(cap);
-	if (!buf)
-		return -1;
-
-	while ((c = getc(stream)) != EOF && c != '"')
+	if (c == EOF)
 	{
-		if (c == '\\')
-		{
-			c = getc(stream);
-			if (c != '"' && c != '\\')
-			{
-				free(buf);
-				unexpected(stream);
-				return -1;
-			}
-		}
-		if (len + 1 >= cap)
-		{
-			cap *= 2;
-			buf = realloc(buf, cap);
-			if (!buf)
-				return -1;
-		}
-		buf[len++] = (char)c;
-	}
-	if (c != '"')
-	{
-		free(buf);
-		unexpected(stream);
-		return -1;
-	}
-	buf[len] = '\0';
-
-	dst->type   = STRING;
-	dst->string = buf;
-	return 1;
+    unexpected(stream);
+    return -1;
+  }
+  if (isdigit(c) || c == '-')
+    return (parse_int(dst, stream));
+  else if (c == '"')
+  {
+    dst->type = STRING;
+    dst->string = get_str(stream);
+    if (dst->string == NULL)
+      return (-1);
+    return (1);
+  } 
+  else if (c == '{')
+    return (parse_map(dst, stream));
+  else
+  {
+    unexpected(stream);
+    return -1;
+  }
 }
 
-static int	parse_map(json *dst, FILE *stream)
+int argo(json *dst, FILE *stream)
 {
-	pair	*arr;
-	size_t	cap = 4, count = 0;
-	json	tmp_val, tmp_key;
-	size_t	i;
+  if (parser(dst, stream) == -1)
+    return -1;
 
-	if (!accept(stream, '{'))
-		return -1;
-
-	if (accept(stream, '}'))
-	{
-		dst->type     = MAP;
-		dst->map.data = NULL;
-		dst->map.size = 0;
-		return 1;
-	}
-
-	arr = malloc(cap * sizeof(*arr));
-	if (!arr)
-		return -1;
-
-	for (;;)
-	{
-		if (parse_string(&tmp_key, stream) == -1)
-			goto err;
-		if (!expect(stream, ':'))
-		{
-			free(tmp_key.string);
-			goto err;
-		}
-		if (parse_value(&tmp_val, stream) == -1)
-		{
-			free(tmp_key.string);
-			goto err;
-		}
-
-		if (count == cap)
-		{
-			cap *= 2;
-			arr = realloc(arr, cap * sizeof(*arr));
-			if (!arr)
-				return -1;
-		}
-		arr[count].key   = tmp_key.string;
-		arr[count].value = tmp_val;
-		count++;
-
-		if (accept(stream, ','))
-			continue;
-		break;
-	}
-
-	if (!expect(stream, '}'))
-		goto err;
-
-	dst->type     = MAP;
-	dst->map.data = arr;
-	dst->map.size = count;
-	return 1;
-
-err:
-	for (i = 0; i < count; i++)
-	{
-		free(arr[i].key);
-		free_json(arr[i].value);  /* <-- appelle aussi celle de main.c */
-	}
-	free(arr);
-	return -1;
+  if (peek(stream) != EOF) {
+    unexpected(stream);
+    free_json(*dst);
+    return -1;
+  }
+  return 1;
 }

@@ -14,8 +14,10 @@ typedef struct	json {
 		INTEGER,
 		STRING
 	} type;
-	union {
-		struct {
+	union
+	{
+		struct
+		{
 			struct pair	*data;
 			size_t		size;
 		} map;
