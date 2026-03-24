@@ -44,14 +44,15 @@ int picoshell(char ***cmds)
     int prev_fd = 0;
     int i = 0;
     int has_pipe = 0;
-
+    printf("%s\n" ,*cmds[i]);
     while (cmds[i])
     {
+        has_pipe = 0;
         int start = i;
-        // while (*cmds[i] && strcmp(*cmds[i], "|") != 0)
+        // while (cmds[i] && strcmp(*cmds[i], "|") != 0)
         //     i++;
-        if (cmds[i + 1])
-            has_pipe = 1;
+        if (cmds[i + 1]) //뒤에도 더블어레이가 있다면? 그럼 | 겠거니 하는거지
+             has_pipe = 1;
 
         if (has_pipe)
         {
@@ -92,7 +93,6 @@ int picoshell(char ***cmds)
             {
                 prev_fd = fd[0];
                 close(fd[1]);
-                has_pipe = 0;
             }
         }
         i++;
