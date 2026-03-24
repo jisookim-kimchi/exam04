@@ -130,55 +130,47 @@ int parser(json *dst, FILE *stream);
 
 int parse_map(json *dst, FILE *stream)
 {
-  dst->type = MAP;
-  dst->map.size = 0;
-  dst->map.data = NULL;
-  (void)getc(stream); // 여는 중괄호 '{' 소비
+	dst->type = MAP;
+	dst->map.size = 0;
+	dst->map.data = NULL;
+	char c = getc(stream);
 
-  if (peek(stream) == '}')
-  {
-    accept(stream, '}');
-    return 1;
-  }
+	if (peek(stream) == '}')
+		return 1;
 
-  while (1)
-  {
-    if (peek(stream) != '"')
+	while (1)
 	{
-      unexpected(stream);
-      return -1;
-    }
-    dst->map.data = realloc(dst->map.data, (dst->map.size + 1) * sizeof(pair));
-    pair *current = &dst->map.data[dst->map.size];
-    current->key = get_str(stream);
-    if (current->key == NULL)
-      return -1;
-
-    dst->map.size++;
-
-    if (expect(stream, ':') == 0)
-      return -1;
-
-    if (parser(&current->value, stream) == -1)
-      return -1;
-
-    int c = peek(stream);
-    if (c == '}')
-	{
-      accept(stream, '}');
-      break;
-    }
-    if (c == ',')
-	{
-      accept(stream, ',');
-    }
-	else
-	{
-      unexpected(stream);
-      return -1;
-    }
-  }
-  return 1;
+		c = peek(stream);
+		if (c != '"')
+		{
+			unexpected(stream);
+			return -1;
+		}
+		dst->map.data = realloc(dst->map.data, (dst->map.size + 1) * sizeof(pair));
+		pair *current = &dst->map.data[dst->map.size];
+		current->key = get_str(stream);
+		if (current->key == NULL)
+			return -1;
+		dst->map.size++;
+		if (expect(stream, ':') == 0)
+			return -1;
+		if (argo(&current->value, stream) == -1)
+			return -1;
+		c = peek(stream);
+		if (c == '}')
+		{
+			accept(stream ,c);
+			break ;
+		}
+		if (c == ',')
+			accept(stream, ',');
+		else
+		{
+			unexpected(stream);
+			return -1;
+		}
+	}
+	return 1;
 }
 
 int parser(json *dst, FILE *stream)
