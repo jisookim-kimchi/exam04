@@ -1,13 +1,10 @@
 #include <stdio.h>
-#include <stdlib.h>    // MOD: on utilise <stdlib.h> pour calloc/free au lieu de <malloc.h>
+#include <malloc.h>
 #include <ctype.h>
-#include <unistd.h>
 
-struct node *parse_mid_priority(char **s);
-
-struct node 
+typedef struct node
 {
-    enum 
+    enum
     {
         ADD,
         MULTI,
@@ -16,145 +13,55 @@ struct node
     int val;
     struct node *l;
     struct node *r;
-};
+}   node;
 
-struct node *new_node(struct node n)
+node    *new_node(node n)
 {
-    struct node *ret = calloc(1, sizeof(*ret));
+    node *ret = calloc(1, sizeof(n));
     if (!ret)
-        return NULL;
+        return (NULL);
     *ret = n;
-    return ret;
+    return (ret);
 }
 
-void destroy_tree(struct node *n)
+void    destroy_tree(node *n)
 {
     if (!n)
-        return;
+        return ;
     if (n->type != VAL)
     {
-        destroy_tree(n->l);
-        destroy_tree(n->r);
+        if (n->l)
+            destroy_tree(n->l);
+        if (n->r)
+            destroy_tree(n->r);
     }
     free(n);
 }
 
-
-
-
-struct node *parse_low_priority(char **s);
-struct node *parse_mid_priority(char **s);
-struct node *parse_highest_priority(char **s);
-
-
-// 덧셈 우선순위
-
-struct node *parse_low_priority(char **s)
+void    unexpected(char c)
 {
-    struct node *left = parse_mid_priority(s);
-    if (!left)
-        return NULL;
-    
-    while (**s == '+')
-    {
-        (*s)++;
-        
-        struct node *right = parse_mid_priority(s);
-        if (!right)
-        {
-            destroy_tree(left);
-            return NULL;
-        }
-        
-        struct node n = {.type = ADD, .l = left, .r = right};
-        left = new_node(n);
-        if (!left)
-            return NULL;
-    }
-    
-    return left;
+    if (c)
+        printf("Unexpected token '%c'\n", c);
+    else
+        printf("Unexpected end of file\n");
 }
 
-// 곱셈 우선순위
-struct node *parse_mid_priority(char **s)
+int accept(char **s, char c)
 {
-    // 1. 첫 번째 인수 가져오기
-    struct node *left = parse_highest_priority(s);
-    if (!left)
-        return NULL;
-    
-    // 2. '*' 가 있는 동안 반복
-    while (**s == '*')
+    if (**s == c)
     {
         (*s)++;
-        
-        struct node *right = parse_highest_priority(s);
-        if (!right)
-        {
-            destroy_tree(left);
-            return NULL;
-        }
-        
-        struct node n = {.type = MULTI, .l = left, .r = right};
-        left = new_node(n);
-        if (!left)
-            return NULL;
+        return (1);
     }
-    
-    return left;
+    return (0);
 }
 
-//parsing 
-//가장 높은 우선순위 숫자 또는 괄호
-struct node *parse_highest_priority(char **s)
+int expect(char **s, char c)
 {
-    if (**s == '\0')  // 입력 끝이면
-    {
-        unexpected(**s);
-        return NULL;
-    }
-
-    if (isdigit((unsigned char)**s))
-    {
-        struct node n;
-        n.type = VAL;
-        n.val = **s - '0';
-        n.l = n.r = NULL;
-        (*s)++;
-        return new_node(n);
-    }
-    
-    if (**s == '(')
-    {
-        (*s)++;
-
-        struct node *low = parse_low_priority(s);
-        if (!low)
-        {
-            return NULL;
-        }
-
-        if (**s == '\0') // 괄호가 닫히지 않고 끝남
-        {
-            destroy_tree(low);
-            unexpected(**s);
-            return NULL;
-        }
-
-        if (**s != ')') 
-        {
-            destroy_tree(low);
-            unexpected(**s);
-            return NULL;
-        }
-
-        (*s)++;
-        return low;
-    }
-
-    // 숫자도 '('도 아닌 이상한 문자
+    if (accept(s, c))
+        return (1);
     unexpected(**s);
-    return NULL;
+    return (0);
 }
 
 struct node    *parse_expr(char *s)
@@ -177,6 +84,8 @@ struct node    *parse_expr(char *s)
     return ret;
 }
 
+
+
 int main(int argc, char **argv)
 {
     if (argc != 2)
@@ -184,11 +93,11 @@ int main(int argc, char **argv)
 
     char *s = argv[1];
 
-    struct node *tree = parse_expr(&s);
+    struct node *tree = parse_expr(s);
     if (!tree)
         return 1;
 
-    printf("%d\n", eval(tree));
+    printf("%d\n", eval_tree(tree));
     destroy_tree(tree);
     return 0;
 }

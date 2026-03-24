@@ -142,48 +142,63 @@ int main()
     return 0;
 }
 
+
 static pid_t g_child_pid = 0;
-static bool is_timeout = false;
+static bool g_is_timeout = false;
+
+void handler_timeout(int sig)
+{
+    (void)sig;
+    if (g_child_pid > 0)
+    {
+        kill(g_child_pid, SIGALRM);
+        g_is_timeout =
+    }
+}
 
 int sandbox(void (*f)(void), unsigned int timeout, bool verbose)
 {
-    struct sigaction sa;
-    struct sigaction old_sa;
+    struct sigaction sa = {0};
+    struct sigaction old_sa = {0};
     int status = 0;
-    sa.sa_handler = timeout_handler;
-    sigaction(SIGALRM, &sa, &old_sa);
+
+    sa.sa_handler = &handler_timeout;
+    if (sigaction(SIGALRM, &sa, &old_sa) == -1)
+        return -1;
     g_child_pid = fork();
     if (g_child_pid == -1)
-    {
-        sigaction(SIGALRM, &old_sa, NULL);
         return -1;
-    }
     if (g_child_pid == 0)
     {
         f();
         exit(0);
     }
     alarm(timeout);
-    while (waitpid(g_child_pid, &status, 0)  == -1)
+    //an error occurred
+    while (waitpid(g_child_pid, &status, 0) == -1)
     {
-        if (errno != EINTR)
+        if(errno != EINTR) //real error occured 
             break;
     }
+
     alarm(0);
-    sigaction(SIGALRM, &old_sa, NULL);
-    if (verbose)
-        verbose_message();
-    g_is_timeout = 0;
-    if (g_child_pid)
-        close(g_child_pid);
-    if (WIFEXITED(status) > 0)
+    if(verbose)
+        verbose_message(status, timeout);
+    if (g_is_timeout)
+        g_is_timeout = false;
+    int res = 0;
+    if(WIFEXITED(status))
     {
         if (WEXITSTATUS(status) == 0)
-            return 1;
-        else
-            return 0;
+            res = 1;
+        else 
+            res = 0;
     }
     if (WIFSIGNALED(status))
-        return 0;
-    return 0;
+    {
+        res = 0;
+    }
+    return res;
+
+
 }

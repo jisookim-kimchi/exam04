@@ -35,16 +35,15 @@ squblblb/
 #include <stdlib.h>
 #include <string.h>
 
-
-int picoshell(char ***cmds)
+int mypicoshell(char ***cmds)
 {
-    int status = 0, res = 0;
-    pid_t pid;
+    int status = 0;
+    int res = 0;
+    int i = 0;
     int fd[2];
     int prev_fd = 0;
-    int i = 0;
+    pid_t pid;
     int has_pipe = 0;
-    printf("%s\n" ,*cmds[i]);
     while (cmds[i])
     {
         has_pipe = 0;
@@ -57,37 +56,32 @@ int picoshell(char ***cmds)
         if (has_pipe)
         {
             if (pipe(fd) < 0)
-            {
                 return 1;
-            }
         }
         pid = fork();
-        if (pid < 0)
-        {
+        if (pid == -1)
             return 1;
-        }
-
         if (pid == 0)
         {
-            // Child
-            if (prev_fd)
+            if(prev_fd)
             {
-                dup2(prev_fd, STDIN_FILENO);
-                close(prev_fd);
+                if (dup2(prev_fd, STDIN_FILENO) == -1)
+                    exit(1);
+                close (prev_fd);
             }
             if (has_pipe)
             {
-                dup2(fd[1], STDOUT_FILENO);
-                close(fd[0]);
+                if (dup2(fd[1], STDOUT_FILENO) == -1)
+                    exit(1);
                 close(fd[1]);
+                close(fd[0]);
             }
             execvp(cmds[start][0], cmds[start]);
-            perror("execvp");
             exit(1);
         }
         else
         {
-            if (prev_fd)
+            if(prev_fd)
                 close(prev_fd);
             if (has_pipe)
             {
@@ -97,13 +91,81 @@ int picoshell(char ***cmds)
         }
         i++;
     }
-
-    while (wait(&status) > 0) {
+    while (wait(&status) > 0)
+    {
         if (!WIFEXITED(status) || WEXITSTATUS(status) != 0)
             res = 1;
     }
     return res;
+
 }
+
+// int picoshell(char ***cmds)
+// {
+//     int status = 0, res = 0;
+//     pid_t pid;
+//     int fd[2];
+//     int prev_fd = 0;
+//     int i = 0;
+//     int has_pipe = 0;
+
+//     while (cmds[i])
+//     {
+//         int start = i;
+//         if (cmds[i + 1])
+//             has_pipe = 1;
+
+//         if (has_pipe)
+//         {
+//             if (pipe(fd) < 0)
+//             {
+//                 return 1;
+//             }
+//         }
+//         pid = fork();
+//         if (pid < 0)
+//         {
+//             return 1;
+//         }
+
+//         if (pid == 0)
+//         {
+//             // Child
+//             if (prev_fd)
+//             {
+//                 dup2(prev_fd, STDIN_FILENO);
+//                 close(prev_fd);
+//             }
+//             if (has_pipe)
+//             {
+//                 dup2(fd[1], STDOUT_FILENO);
+//                 close(fd[0]);
+//                 close(fd[1]);
+//             }
+//             execvp(cmds[start][0], cmds[start]);
+//             perror("execvp");
+//             exit(1);
+//         }
+//         else
+//         {
+//             if (prev_fd)
+//                 close(prev_fd);
+//             if (has_pipe)
+//             {
+//                 prev_fd = fd[0];
+//                 close(fd[1]);
+//                 has_pipe = 0;
+//             }
+//         }
+//         i++;
+//     }
+
+//     while (wait(&status) > 0) {
+//         if (!WIFEXITED(status) || WEXITSTATUS(status) != 0)
+//             res = 1;
+//     }
+//     return res;
+// }
 
 int count_cmds(int argc, char *argv[])
 {
@@ -146,7 +208,7 @@ int main(int argc, char **argv)
     }
     cmds[cmd_count] = NULL;
 
-    int ret = picoshell(cmds);
+    int ret = mypicoshell(cmds);
 
     // Limpiar memoria
     for (int i = 0; cmds[i]; i++)
