@@ -55,9 +55,6 @@ int	peek(FILE *stream)
   return c;
 }
 
-/*
- * 에러 메시지의 첫 글자를 대문자 'U'로 수정했습니다.
- */
 void	unexpected(FILE *stream)
 {
   if (peek(stream) != EOF)
